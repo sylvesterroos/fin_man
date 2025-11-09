@@ -21,7 +21,8 @@ custom classes must fully style the input
 
 ### Ash v3 guidelines
 
-- Prefer defining code interfaces on the domain instead of on the resources, similar to Phoenix contexts. This lets the domain act as a solid boundary with the rest of the application. Listing all the resources in the domain also gives a great overview of all the functionality in one place.
+- **Always** define code interfaces on the domain instead of on the resources, similar to Phoenix contexts. This lets the domain act as a solid boundary with the rest of the application. Listing all the resources in the domain also gives a great overview of all the functionality in one place.
+- **Always** use the defined code interfaces instead of manually calling the actions.
 - **Always** use `mix ash.migrate` instead of `mix ecto.migrate`. The former will run all migration tasks for any extensions on any resource/domain, not just the Ecto migrations.
 - If you're iterating over some changes in the data model, using mix ash.codegen --dev is very convenient, then you will create "dev" snapshots and migrations, and once you're happy with the state of things and want to solidify them, you run mix ash.migrate my_new_migration, which will basically remove all the .dev.exs &.dev.json migrations and snapshots, and regenerate new ones with all the changes included.
 
