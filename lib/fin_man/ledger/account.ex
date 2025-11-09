@@ -27,6 +27,14 @@ defmodule FinMan.Ledger.Account do
       accept [:identifier, :currency]
     end
 
+    read :by_id do
+      get_by [:id]
+    end
+
+    read :by_identifier do
+      get_by [:identifier]
+    end
+
     read :lock_accounts do
       # Used to lock accounts while doing ledger operations
       prepare {AshDoubleEntry.Account.Preparations.LockForUpdate, []}
@@ -70,6 +78,28 @@ defmodule FinMan.Ledger.Account do
         allow_nil? false
         allow_expr? true
         default &DateTime.utc_now/0
+      end
+    end
+
+    calculate :account_type, :string do
+      calculation fn records, _context ->
+        Enum.map(records, fn record ->
+          case String.split(record.identifier, ":", parts: 2) do
+            [type, _] -> type
+            [single] -> single
+          end
+        end)
+      end
+    end
+
+    calculate :category_name, :string do
+      calculation fn records, _context ->
+        Enum.map(records, fn record ->
+          case String.split(record.identifier, ":", parts: 2) do
+            [_, category] -> category
+            [single] -> single
+          end
+        end)
       end
     end
   end

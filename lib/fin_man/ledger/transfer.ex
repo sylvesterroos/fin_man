@@ -18,7 +18,14 @@ defmodule FinMan.Ledger.Transfer do
     defaults [:read]
 
     create :transfer do
-      accept [:amount, :timestamp, :from_account_id, :to_account_id]
+      accept [
+        :amount,
+        :timestamp,
+        :from_account_id,
+        :to_account_id,
+        :description,
+        :date
+      ]
     end
   end
 
@@ -31,6 +38,15 @@ defmodule FinMan.Ledger.Transfer do
 
     attribute :amount, :money do
       allow_nil? false
+    end
+
+    attribute :description, :string do
+      allow_nil? true
+    end
+
+    attribute :date, :date do
+      allow_nil? false
+      default &Date.utc_today/0
     end
 
     timestamps()
