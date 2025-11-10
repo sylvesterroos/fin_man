@@ -24,6 +24,20 @@ in
     package = elixir;
   };
 
+  processes = {
+    fin_man = {
+      exec = "iex --color --sname fin_man -S mix phx.server";
+      process-compose = {
+        is_tty = true;
+        depends_on = {
+          postgres = {
+            condition = "process_healthy";
+          };
+        };
+      };
+    };
+  };
+
   services.postgres = {
     enable = true;
     package = pkgs.postgresql_18;
