@@ -53,6 +53,7 @@ defmodule FinManWeb do
       use Phoenix.LiveView
 
       unquote(html_helpers())
+      unquote(live_helpers())
     end
   end
 
@@ -61,6 +62,7 @@ defmodule FinManWeb do
       use Phoenix.LiveComponent
 
       unquote(html_helpers())
+      unquote(live_helpers())
     end
   end
 
@@ -93,6 +95,13 @@ defmodule FinManWeb do
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())
+    end
+  end
+
+  defp live_helpers do
+    quote do
+      def ok(socket), do: {:ok, socket}
+      def noreply(socket), do: {:noreply, socket}
     end
   end
 

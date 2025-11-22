@@ -17,7 +17,8 @@ defmodule FinManWeb.Router do
   scope "/", FinManWeb do
     pipe_through :browser
 
-    live "/", TransferLive
+    live "/", OverviewLive
+    live "/transfers/new", TransferLive, :new
   end
 
   # Other scopes may use custom stacks.

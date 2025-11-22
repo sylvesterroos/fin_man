@@ -1,281 +1,325 @@
 defmodule FinManWeb.TransferLive do
   use FinManWeb, :live_view
-
   alias FinMan.Ledger
-  alias FinMan.Ledger.Transfer
 
   @impl true
   def mount(_params, _session, socket) do
-    accounts = Ledger.read_accounts!() |> Ash.load!([:account_type, :category_name])
-    transfers = load_transfers()
+    # Get income and expense accounts for the dropdowns
+    {:ok, income_accounts} = Ledger.get_income_accounts()
+    {:ok, expense_accounts} = Ledger.get_expense_accounts()
 
-    socket =
-      socket
-      |> assign(:accounts, accounts)
-      |> assign(:transfer_type, :incoming)
-      |> assign_new_form()
-      |> assign(:transfers, transfers)
+    socket
+    |> assign(:income_accounts, income_accounts)
+    |> assign(:expense_accounts, expense_accounts)
+    |> assign(:active_tab, :income)
+    |> assign_income_form()
+    |> assign_expense_form()
+    |> ok()
+  end
 
-    {:ok, socket}
+  @impl true
+  def handle_event("switch_tab", %{"tab" => tab}, socket) do
+    socket
+    |> assign(:active_tab, String.to_existing_atom(tab))
+    |> noreply()
+  end
+
+  @impl true
+  def handle_event("validate_income", %{"income" => params}, socket) do
+    form =
+      AshPhoenix.Form.for_create(Ledger.Transfer, :transfer,
+        domain: Ledger,
+        forms: [auto?: true]
+      )
+      |> AshPhoenix.Form.validate(params)
+      |> to_form()
+
+    socket
+    |> assign(:income_form, form)
+    |> noreply()
+  end
+
+  @impl true
+  def handle_event("submit_income", %{"income" => params}, socket) do
+    case Ledger.create_income_transfer(params) do
+      {:ok, _transfer} ->
+        socket
+        |> put_flash(:info, "Income transfer created successfully!")
+        |> push_navigate(to: ~p"/")
+        |> noreply()
+
+      {:error, error} ->
+        form =
+          AshPhoenix.Form.for_create(Ledger.Transfer, :transfer,
+            domain: Ledger,
+            forms: [auto?: true]
+          )
+          |> AshPhoenix.Form.add_error(error)
+          |> to_form()
+
+        socket
+        |> assign(:income_form, form)
+        |> noreply()
+    end
+  end
+
+  @impl true
+  def handle_event("validate_expense", %{"expense" => params}, socket) do
+    form =
+      AshPhoenix.Form.for_create(Ledger.Transfer, :transfer,
+        domain: Ledger,
+        forms: [auto?: true]
+      )
+      |> AshPhoenix.Form.validate(params)
+      |> to_form()
+
+    socket
+    |> assign(:expense_form, form)
+    |> noreply()
+  end
+
+  @impl true
+  def handle_event("submit_expense", %{"expense" => params}, socket) do
+    case Ledger.create_expense_transfer(params) do
+      {:ok, _transfer} ->
+        socket
+        |> put_flash(:info, "Expense transfer created successfully!")
+        |> push_navigate(to: ~p"/")
+        |> noreply()
+
+      {:error, error} ->
+        form =
+          AshPhoenix.Form.for_create(Ledger.Transfer, :transfer,
+            domain: Ledger,
+            forms: [auto?: true]
+          )
+          |> AshPhoenix.Form.add_error(error)
+          |> to_form()
+
+        socket
+        |> assign(:expense_form, form)
+        |> noreply()
+    end
   end
 
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="space-y-8">
+    <div class="space-y-6">
+      <%!-- Header --%>
       <div class="flex justify-between items-center">
-        <h1 class="text-3xl font-bold text-gray-900">Transfers</h1>
+        <h1 class="text-3xl font-bold">New Transfer</h1>
+        <.link navigate="/" class="btn btn-ghost">
+          <.icon name="hero-arrow-left" class="size-4 mr-2" /> Back to Overview
+        </.link>
       </div>
 
-      <.card color="white" rounded="large" padding="large">
-        <.card_title title="New Transfer" size="large" />
+      <%!-- Tab Navigation --%>
+      <div class="flex gap-2 border-b border-gray-200 dark:border-gray-700">
+        <button
+          type="button"
+          phx-click="switch_tab"
+          phx-value-tab="income"
+          class={[
+            "px-4 py-2 font-medium transition-colors",
+            if(@active_tab == :income,
+              do: "border-b-2 border-primary text-primary",
+              else: "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            )
+          ]}
+        >
+          Incoming Transfer (Income)
+        </button>
+        <button
+          type="button"
+          phx-click="switch_tab"
+          phx-value-tab="expense"
+          class={[
+            "px-4 py-2 font-medium transition-colors",
+            if(@active_tab == :expense,
+              do: "border-b-2 border-primary text-primary",
+              else: "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            )
+          ]}
+        >
+          Outgoing Transfer (Expense)
+        </button>
+      </div>
 
-        <.card_content>
-          <div class="mb-6">
-            <div class="inline-flex rounded-lg border border-gray-200 p-1 bg-gray-50">
-              <button
-                type="button"
-                phx-click="switch-type"
-                phx-value-type="incoming"
-                class={[
-                  "px-4 py-2 text-sm font-medium rounded-md transition-colors",
-                  @transfer_type == :incoming &&
-                    "bg-white text-blue-600 shadow-sm",
-                  @transfer_type != :incoming && "text-gray-600 hover:text-gray-900"
-                ]}
-              >
-                Incoming
-              </button>
-              <button
-                type="button"
-                phx-click="switch-type"
-                phx-value-type="outgoing"
-                class={[
-                  "px-4 py-2 text-sm font-medium rounded-md transition-colors",
-                  @transfer_type == :outgoing &&
-                    "bg-white text-blue-600 shadow-sm",
-                  @transfer_type != :outgoing && "text-gray-600 hover:text-gray-900"
-                ]}
-              >
-                Outgoing
-              </button>
-            </div>
-          </div>
+      <%!-- Income Form --%>
+      <div :if={@active_tab == :income}>
+        <.card variant="outline" padding="large">
+          <.card_title title="Record Income" size="large" />
+          <.card_content>
+            <.form
+              for={@income_form}
+              id="income-form"
+              phx-change="validate_income"
+              phx-submit="submit_income"
+            >
+              <div class="space-y-4">
+                <.native_select
+                  field={@income_form[:from_account_id]}
+                  name="income[from_account_id]"
+                  label="Income Category"
+                  color="primary"
+                  variant="default"
+                  size="large"
+                  required
+                >
+                  <:option value="">Select a category</:option>
+                  <:option :for={account <- @income_accounts} value={account.id}>
+                    {String.replace(account.category_name, "_", " ")}
+                  </:option>
+                </.native_select>
 
-          <.form for={@form} id="transfer-form" phx-change="validate" phx-submit="submit">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <%= if @transfer_type == :incoming do %>
-                <.input
-                  type="select"
-                  field={@form[:from_account_id]}
-                  label="From Account (Income)"
-                  options={income_account_options(@accounts)}
-                  prompt="Select source account"
+                <.number_field
+                  field={@income_form[:amount]}
+                  name="income[amount]"
+                  label="Amount (EUR)"
+                  color="primary"
+                  variant="default"
+                  size="large"
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0.01"
+                  required
                 />
-                <.input
-                  type="select"
-                  field={@form[:to_account_id]}
-                  label="To Account (Assets)"
-                  options={asset_account_options(@accounts)}
-                  prompt="Select destination account"
+
+                <.text_field
+                  field={@income_form[:description]}
+                  name="income[description]"
+                  label="Description"
+                  color="primary"
+                  variant="default"
+                  size="large"
+                  placeholder="Enter a description (optional)"
                 />
-              <% else %>
-                <.input
-                  type="select"
-                  field={@form[:from_account_id]}
-                  label="From Account (Assets)"
-                  options={asset_account_options(@accounts)}
-                  prompt="Select source account"
+
+                <.date_time_field
+                  field={@income_form[:date]}
+                  name="income[date]"
+                  label="Date"
+                  type="date"
+                  color="primary"
+                  variant="default"
+                  size="large"
+                  value={Date.utc_today() |> Date.to_string()}
+                  required
                 />
-                <.input
-                  type="select"
-                  field={@form[:to_account_id]}
-                  label="To Account (Expenses)"
-                  options={expense_account_options(@accounts)}
-                  prompt="Select destination account"
+
+                <div class="flex gap-3 pt-4">
+                  <.button type="submit" variant="default" color="primary" size="large">
+                    Create Income Transfer
+                  </.button>
+                  <.button_link navigate="/" variant="outline" color="secondary" size="large">
+                    Cancel
+                  </.button_link>
+                </div>
+              </div>
+            </.form>
+          </.card_content>
+        </.card>
+      </div>
+
+      <%!-- Expense Form --%>
+      <div :if={@active_tab == :expense}>
+        <.card variant="outline" padding="large">
+          <.card_title title="Record Expense" size="large" />
+          <.card_content>
+            <.form
+              for={@expense_form}
+              id="expense-form"
+              phx-change="validate_expense"
+              phx-submit="submit_expense"
+            >
+              <div class="space-y-4">
+                <.native_select
+                  field={@expense_form[:to_account_id]}
+                  name="expense[to_account_id]"
+                  label="Expense Category"
+                  color="primary"
+                  variant="default"
+                  size="large"
+                  required
+                >
+                  <:option value="">Select a category</:option>
+                  <:option :for={account <- @expense_accounts} value={account.id}>
+                    {String.replace(account.category_name, "_", " ")}
+                  </:option>
+                </.native_select>
+
+                <.number_field
+                  field={@expense_form[:amount]}
+                  name="expense[amount]"
+                  label="Amount (EUR)"
+                  color="primary"
+                  variant="default"
+                  size="large"
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0.01"
+                  required
                 />
-              <% end %>
 
-              <.input
-                name={@form[:amount].name <> "[amount]"}
-                id={@form[:amount].id <> "_amount"}
-                label="Amount"
-                type="number"
-                step="0.01"
-                value={if(@form[:amount].value, do: @form[:amount].value.amount)}
-              />
+                <.text_field
+                  field={@expense_form[:description]}
+                  name="expense[description]"
+                  label="Description"
+                  color="primary"
+                  variant="default"
+                  size="large"
+                  placeholder="Enter a description (optional)"
+                />
 
-              <.input
-                type="select"
-                name={@form[:amount].name <> "[currency]"}
-                id={@form[:amount].id <> "_currency"}
-                options={["EUR", "USD", "GBP", "HKD"]}
-                label="Currency"
-                value={if(@form[:amount].value, do: @form[:amount].value.currency)}
-              />
+                <.date_time_field
+                  field={@expense_form[:date]}
+                  name="expense[date]"
+                  label="Date"
+                  type="date"
+                  color="primary"
+                  variant="default"
+                  size="large"
+                  value={Date.utc_today() |> Date.to_string()}
+                  required
+                />
 
-              <.input type="date" field={@form[:date]} label="Date" />
-            </div>
-
-            <.input
-              type="textarea"
-              field={@form[:description]}
-              label="Description"
-              placeholder="Optional description"
-              class="mt-4"
-            />
-
-            <div class="flex justify-end mt-6">
-              <.button type="submit" color="primary" variant="default" size="medium">
-                Create Transfer
-              </.button>
-            </div>
-          </.form>
-        </.card_content>
-      </.card>
-
-      <.card color="white" rounded="large" padding="large">
-        <.card_title title="Recent Transfers" size="large" />
-
-        <.card_content>
-          <.table variant="default" color="natural" padding="medium" rounded="small">
-            <:header>Date</:header>
-            <:header>From</:header>
-            <:header>To</:header>
-            <:header>Amount</:header>
-            <:header>Description</:header>
-
-            <%= for transfer <- @transfers do %>
-              <.tr>
-                <.td>{transfer.date}</.td>
-                <.td>{get_account_display(transfer.from_account)}</.td>
-                <.td>{get_account_display(transfer.to_account)}</.td>
-                <.td>{format_money(transfer.amount)}</.td>
-                <.td>{transfer.description}</.td>
-              </.tr>
-            <% end %>
-          </.table>
-        </.card_content>
-      </.card>
+                <div class="flex gap-3 pt-4">
+                  <.button type="submit" variant="default" color="primary" size="large">
+                    Create Expense Transfer
+                  </.button>
+                  <.button_link navigate="/" variant="outline" color="secondary" size="large">
+                    Cancel
+                  </.button_link>
+                </div>
+              </div>
+            </.form>
+          </.card_content>
+        </.card>
+      </div>
     </div>
     """
   end
 
-  @impl true
-  def handle_event("switch-type", %{"type" => type}, socket) do
-    transfer_type = String.to_existing_atom(type)
-
-    socket =
-      socket
-      |> assign(:transfer_type, transfer_type)
-      |> assign_new_form()
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("validate", %{"form" => params}, socket) do
+  defp assign_income_form(socket) do
     form =
-      socket.assigns.form.source
-      |> AshPhoenix.Form.validate(params)
-      |> to_form()
-
-    {:noreply, assign(socket, :form, form)}
-  end
-
-  @impl true
-  def handle_event("submit", %{"form" => params}, socket) do
-    case AshPhoenix.Form.submit(socket.assigns.form.source, params: params) do
-      {:ok, _transfer} ->
-        socket =
-          socket
-          |> put_flash(:info, "Transfer created successfully")
-          |> assign_new_form()
-          |> assign(:transfers, load_transfers())
-
-        {:noreply, socket}
-
-      {:error, form} ->
-        {:noreply, assign(socket, :form, to_form(form))}
-    end
-  end
-
-  defp load_transfers do
-    Ledger.read_transfers!(load: [:from_account, :to_account])
-    |> Enum.map(fn transfer ->
-      transfer
-      |> Map.update!(:from_account, &maybe_load_calculations/1)
-      |> Map.update!(:to_account, &maybe_load_calculations/1)
-    end)
-  end
-
-  defp maybe_load_calculations(nil), do: nil
-
-  defp maybe_load_calculations(account) do
-    Ash.load!(account, [:account_type, :category_name])
-  end
-
-  defp assign_new_form(socket) do
-    form =
-      Transfer
-      |> AshPhoenix.Form.for_create(:transfer,
+      AshPhoenix.Form.for_create(Ledger.Transfer, :transfer,
         domain: Ledger,
-        as: "form",
-        params: %{"date" => Date.utc_today()}
+        forms: [auto?: true]
       )
       |> to_form()
 
-    assign(socket, :form, form)
+    assign(socket, :income_form, form)
   end
 
-  defp asset_account_options(accounts) do
-    accounts
-    |> Enum.filter(fn account -> account.account_type == "Assets" end)
-    |> Enum.map(fn account ->
-      {"Assets: #{format_category_name(account.category_name)}", account.id}
-    end)
+  defp assign_expense_form(socket) do
+    form =
+      AshPhoenix.Form.for_create(Ledger.Transfer, :transfer,
+        domain: Ledger,
+        forms: [auto?: true]
+      )
+      |> to_form()
+
+    assign(socket, :expense_form, form)
   end
-
-  defp income_account_options(accounts) do
-    accounts
-    |> Enum.filter(fn account -> account.account_type == "Income" end)
-    |> Enum.map(fn account ->
-      {"Income: #{format_category_name(account.category_name)}", account.id}
-    end)
-  end
-
-  defp expense_account_options(accounts) do
-    accounts
-    |> Enum.filter(fn account -> account.account_type == "Expenses" end)
-    |> Enum.map(fn account ->
-      {"Expenses: #{format_category_name(account.category_name)}", account.id}
-    end)
-  end
-
-  defp get_account_display(account) do
-    case account do
-      %{account_type: type, category_name: name} when type != name ->
-        "#{type}: #{format_category_name(name)}"
-
-      %{category_name: name} ->
-        format_category_name(name)
-
-      %{identifier: identifier} ->
-        identifier
-
-      _ ->
-        "N/A"
-    end
-  end
-
-  defp format_category_name(name) do
-    name
-    |> String.replace("_", " ")
-  end
-
-  defp format_money(%Money{amount: amount, currency: currency}) do
-    "#{currency} #{Decimal.to_string(amount)}"
-  end
-
-  defp format_money(_), do: "N/A"
 end

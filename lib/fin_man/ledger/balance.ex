@@ -1,6 +1,6 @@
 defmodule FinMan.Ledger.Balance do
   use Ash.Resource,
-    domain: Elixir.FinMan.Ledger,
+    domain: FinMan.Ledger,
     data_layer: AshPostgres.DataLayer,
     extensions: [AshDoubleEntry.Balance]
 

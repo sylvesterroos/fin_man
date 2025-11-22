@@ -1,6 +1,6 @@
 defmodule FinMan.Ledger.Account do
   use Ash.Resource,
-    domain: Elixir.FinMan.Ledger,
+    domain: FinMan.Ledger,
     data_layer: AshPostgres.DataLayer,
     extensions: [AshDoubleEntry.Account]
 
@@ -38,6 +38,34 @@ defmodule FinMan.Ledger.Account do
     read :lock_accounts do
       # Used to lock accounts while doing ledger operations
       prepare {AshDoubleEntry.Account.Preparations.LockForUpdate, []}
+    end
+
+    read :get_income_accounts do
+      filter expr(contains(identifier, "Income:"))
+      prepare build(load: [:category_name])
+    end
+
+    read :get_expense_accounts do
+      filter expr(contains(identifier, "Expenses:"))
+      prepare build(load: [:category_name])
+    end
+
+    read :get_category_spending do
+      argument :start_date, :utc_datetime_usec, allow_nil?: false
+
+      argument :end_date, :utc_datetime_usec do
+        allow_nil? true
+        default &DateTime.utc_now/0
+      end
+
+      filter expr(contains(identifier, "Expenses:"))
+
+      prepare build(
+                load: [
+                  :category_name,
+                  spent_between: [start_date: arg(:start_date), end_date: arg(:end_date)]
+                ]
+              )
     end
   end
 
@@ -99,6 +127,28 @@ defmodule FinMan.Ledger.Account do
             [_, category] -> category
             [single] -> single
           end
+        end)
+      end
+    end
+
+    calculate :spent_between, :money do
+      argument :start_date, :utc_datetime_usec, allow_nil?: false
+      argument :end_date, :utc_datetime_usec, allow_nil?: false
+
+      calculation fn records, context ->
+        start_date = context.arguments.start_date
+        end_date = context.arguments.end_date
+
+        records_at_end =
+          records
+          |> Ash.load!(balance_as_of: [timestamp: end_date])
+
+        records_at_start =
+          records
+          |> Ash.load!(balance_as_of: [timestamp: start_date])
+
+        Enum.zip_with(records_at_end, records_at_start, fn end_rec, start_rec ->
+          Money.sub!(end_rec.balance_as_of, start_rec.balance_as_of)
         end)
       end
     end
