@@ -49,8 +49,8 @@ defmodule FinManWeb.TransferLiveTest do
       {:ok, _view, html} = live(conn, ~p"/")
       assert html =~ "Financial Overview"
       assert html =~ "Main Account Balance"
-      assert html =~ "Income This Month"
-      assert html =~ "Expenses This Month"
+      assert html =~ "Income for"
+      assert html =~ "Expenses for"
     end
 
     test "displays spending by category", %{conn: conn} do
