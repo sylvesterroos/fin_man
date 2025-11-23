@@ -1,5 +1,8 @@
 defmodule FinManWeb.OverviewLive do
   use FinManWeb, :live_view
+
+  require Logger
+
   alias FinMan.Ledger
 
   @impl true
@@ -25,6 +28,34 @@ defmodule FinManWeb.OverviewLive do
      |> assign(:outgoing_transfers, summary.outgoing_transfers)
      |> assign(:spending_by_category, spending_by_category)
      |> assign(:current_month, Calendar.strftime(Date.utc_today(), "%B %Y"))}
+  end
+
+  @impl true
+  def handle_event("delete_transfer", %{"transfer_id" => transfer_id}, socket) do
+    case Ledger.destroy_transfer(transfer_id) do
+      :ok ->
+        %{assigns: %{main_account: main_account}} = socket
+
+        summary = Ledger.calculate_monthly_summary(main_account.id, Date.utc_today())
+
+        socket
+        |> assign(
+          main_account: main_account,
+          total_income: summary.total_income,
+          total_expenses: summary.total_expenses,
+          net_change: summary.net_change,
+          incoming_transfers: summary.incoming_transfers,
+          outgoing_transfers: summary.outgoing_transfers
+        )
+        |> noreply()
+
+      {:error, error} ->
+        Logger.error("Failed to delete transfer: #{inspect(error)}")
+
+        socket
+        |> put_flash(:error, "Failed to delete transfer")
+        |> noreply()
+    end
   end
 
   @impl true
@@ -132,9 +163,20 @@ defmodule FinManWeb.OverviewLive do
                           {Calendar.strftime(transfer.date, "%b %d, %Y")}
                         </p>
                       </div>
-                      <span class="text-success font-semibold ml-4">
-                        +{Money.to_string!(transfer.amount)}
-                      </span>
+                      <div class="flex items-center gap-2">
+                        <span class="text-success font-semibold">
+                          +{Money.to_string!(transfer.amount)}
+                        </span>
+                        <button
+                          type="button"
+                          phx-click="delete_transfer"
+                          phx-value-transfer_id={transfer.id}
+                          class="text-red-500 hover:text-red-700 transition-colors"
+                          title="Delete transfer"
+                        >
+                          <.icon name="hero-trash" class="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 <% end %>
@@ -165,9 +207,20 @@ defmodule FinManWeb.OverviewLive do
                           {Calendar.strftime(transfer.date, "%b %d, %Y")}
                         </p>
                       </div>
-                      <span class="text-danger font-semibold ml-4">
-                        -{Money.to_string!(transfer.amount)}
-                      </span>
+                      <div class="flex items-center gap-2">
+                        <span class="text-danger font-semibold">
+                          -{Money.to_string!(transfer.amount)}
+                        </span>
+                        <button
+                          type="button"
+                          phx-click="delete_transfer"
+                          phx-value-transfer_id={transfer.id}
+                          class="text-red-500 hover:text-red-700 transition-colors"
+                          title="Delete transfer"
+                        >
+                          <.icon name="hero-trash" class="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 <% end %>

@@ -12,10 +12,14 @@ defmodule FinMan.Ledger.Balance do
   postgres do
     table "ledger_balances"
     repo FinMan.Repo
+
+    references do
+      reference :transfer, on_delete: :delete
+    end
   end
 
   actions do
-    defaults [:read]
+    defaults [:read, :destroy]
 
     create :upsert_balance do
       accept [:balance, :account_id, :transfer_id]

@@ -17,7 +17,7 @@ defmodule FinMan.Ledger.Transfer do
   end
 
   actions do
-    defaults [:read]
+    defaults [:read, :destroy]
 
     create :transfer do
       accept [

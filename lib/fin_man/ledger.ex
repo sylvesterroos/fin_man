@@ -36,6 +36,7 @@ defmodule FinMan.Ledger do
       define :get_transfers, action: :get_transfers
       define :create_income_transfer, action: :create_income
       define :create_expense_transfer, action: :create_expense
+      define :destroy_transfer, action: :destroy
     end
   end
 
