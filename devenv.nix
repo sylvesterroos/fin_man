@@ -7,13 +7,34 @@
 }:
 
 let
+  pname = "fin_man";
+  version = "0.1.0";
+
   pkgs-unstable = import inputs.nixpkgs-unstable { system = pkgs.stdenv.system; };
 
-  beamPkgs = pkgs-unstable.beam.packagesWith pkgs-unstable.beam.interpreters.erlang_27;
-  elixir = beamPkgs.elixir_1_18;
+  beamPkgs = pkgs-unstable.beam.packagesWith pkgs-unstable.beam.interpreters.erlang_28;
+  elixir = beamPkgs.elixir_1_19;
+
+  beam_minimal = pkgs-unstable.beam_minimal;
+  erlang_minimal = beam_minimal.interpreters.erlang_28;
+  beamPkgsMinimal = beam_minimal.packagesWith erlang_minimal;
+  elixir_minimal = beamPkgsMinimal.elixir_1_19;
+
+  release_minimal = pkgs-unstable.callPackage ./nix/package.nix {
+    inherit pname version;
+    beamPackages = beamPkgsMinimal;
+    erlang = erlang_minimal;
+    elixir = elixir_minimal;
+  };
 in
 {
-  packages = with pkgs; [ git ];
+  outputs = {
+    ${pname} = release_minimal;
+  };
+
+  packages = with pkgs; [
+    git
+  ];
 
   languages.nix = {
     enable = true;
