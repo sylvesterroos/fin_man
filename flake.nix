@@ -83,6 +83,7 @@
                     fin_man = {
                       exec = /* bash */ ''
                         mix do deps.get + ash.setup + assets.setup + assets.build
+                        mix run --eval FinMan.Release.seed
 
                         iex --color --sname fin_man -S mix phx.server
                       '';

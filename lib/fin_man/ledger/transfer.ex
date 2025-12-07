@@ -75,8 +75,6 @@ defmodule FinMan.Ledger.Transfer do
       accept [:amount, :from_account_id, :description, :date]
 
       change fn changeset, _context ->
-        changeset |> dbg()
-
         case Ledger.get_main_account() do
           {:ok, main_account} ->
             Ash.Changeset.change_attribute(changeset, :to_account_id, main_account.id)

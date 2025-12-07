@@ -28,6 +28,35 @@ if config_env() == :prod do
       For example: ecto://USER:PASS@HOST/DATABASE
       """
 
+  %URI{host: db_host} = db_uri = URI.parse(database_url)
+  db_socket_dir? = String.starts_with?(db_host, "%2F") or db_host == ""
+
+  if db_socket_dir? do
+    [database] = String.split(db_uri.path, "/", trim: true)
+
+    socket_dir =
+      if db_host == "" do
+        db_host = (db_uri.query || "") |> URI.decode_query() |> Map.get("host")
+        db_host || raise ArgumentError, "DATABASE_URL=#{database_url} doesn't include host info"
+      else
+        URI.decode_www_form(db_host)
+      end
+
+    config :fin_man, FinMan.Repo,
+      socket_dir: socket_dir,
+      database: database
+
+    if userinfo = db_uri.userinfo do
+      [username, password] = String.split(userinfo, ":")
+
+      config :fin_man, FinMan.Repo,
+        username: username,
+        password: password
+    end
+  else
+    config :fin_man, FinMan.Repo, url: database_url
+  end
+
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
   config :fin_man, FinMan.Repo,
@@ -53,6 +82,22 @@ if config_env() == :prod do
   host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PORT") || "4000")
 
+  listen_ip =
+    (
+      listen_ip_str = System.get_env("LISTEN_IP", "127.0.0.1")
+
+      listen_ip_str
+      |> String.to_charlist()
+      |> :inet.parse_address()
+      |> case do
+        {:ok, ip_addr} ->
+          ip_addr
+
+        {:error, reason} ->
+          raise "Invalid LISTEN_IP '#{listen_ip_str}' error: #{inspect(reason)}"
+      end
+    )
+
   config :fin_man, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :fin_man, FinManWeb.Endpoint,
@@ -62,7 +107,7 @@ if config_env() == :prod do
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
       # See the documentation on https://hexdocs.pm/bandit/Bandit.html#t:options/0
       # for details about using IPv6 vs IPv4 and loopback vs public addresses.
-      ip: {0, 0, 0, 0, 0, 0, 0, 0},
+      ip: listen_ip,
       port: port
     ],
     secret_key_base: secret_key_base

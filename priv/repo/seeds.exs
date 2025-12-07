@@ -10,57 +10,10 @@
 # We recommend using the bang functions (`insert!`, `update!`
 # and so on) as they will fail if something goes wrong.
 
-FinMan.Ledger.open!(%{
-  identifier: "Assets:Account",
-  currency: "EUR"
-})
+# Seed accounts idempotently
+FinMan.Seeds.seed_accounts()
 
-IO.puts("Created main account")
-
-income_categories = [
-  "Salary",
-  "Investment",
-  "Other Income"
-]
-
-for category_name <- income_categories do
-  account_identifier = "Income:#{category_name}"
-
-  FinMan.Ledger.open!(%{
-    identifier: account_identifier,
-    currency: "EUR"
-  })
-
-  IO.puts("Created income account: #{account_identifier}")
-end
-
-expense_categories = [
-  "Groceries",
-  "Rent",
-  "Utilities",
-  "Gasoline",
-  "Vehicle maintenance",
-  "Entertainment",
-  "Healthcare",
-  "Insurance",
-  "Dining out/Take-away",
-  "Shopping",
-  "Subscriptions",
-  "Other Expenses"
-]
-
-for category_name <- expense_categories do
-  account_identifier = "Expenses:#{category_name}"
-
-  FinMan.Ledger.open!(%{
-    identifier: account_identifier,
-    currency: "EUR"
-  })
-
-  IO.puts("Created expense account: #{account_identifier}")
-end
-
-with salary_acc <- FinMan.Ledger.get_account_by_identifier!("Income:Salary") do
+with {:ok, salary_acc} <- FinMan.Ledger.get_account_by_identifier("Income:Salary") do
   FinMan.Ledger.create_income_transfer!(%{
     from_account_id: salary_acc.id,
     amount: "2650"
@@ -92,7 +45,7 @@ expense_seeds = [
   {"Dining out/Take-away",
    [
      %{amount: "10.5", description: "Pizza"},
-     %{amount: "7.5", description: "Belegd broodje"}
+     %{amount: "45", description: "Uit eten in Oude Haven"}
    ]},
   {"Shopping",
    [
@@ -109,12 +62,10 @@ expense_seeds = [
 for {category_name, params} <- expense_seeds do
   account_identifier = "Expenses:#{category_name}"
 
-  with account <- FinMan.Ledger.get_account_by_identifier!(account_identifier) do
+  with {:ok, account} <- FinMan.Ledger.get_account_by_identifier(account_identifier) do
     Enum.each(
       params,
       &FinMan.Ledger.create_expense_transfer!(Map.merge(&1, %{to_account_id: account.id}))
     )
   end
 end
-
-IO.puts("\nDatabase seeded successfully!")

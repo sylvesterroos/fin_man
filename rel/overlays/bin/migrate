@@ -2,4 +2,5 @@
 set -eu
 
 cd -P -- "$(dirname -- "$0")"
-exec ./fin_man eval FinMan.Release.migrate
+./fin_man eval FinMan.Release.migrate
+./fin_man eval FinMan.Release.seed

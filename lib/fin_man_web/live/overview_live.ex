@@ -7,7 +7,7 @@ defmodule FinManWeb.OverviewLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, main_account} = Ledger.get_main_account()
+    main_account = Ledger.get_main_account!()
     selected_date = Date.utc_today()
 
     socket

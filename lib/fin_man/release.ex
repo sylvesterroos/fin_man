@@ -13,6 +13,16 @@ defmodule FinMan.Release do
     end
   end
 
+  def seed do
+    load_app()
+
+    {:ok, _, _} =
+      Ecto.Migrator.with_repo(FinMan.Repo, fn _repo ->
+        FinMan.Seeds.seed_accounts()
+        :ok
+      end)
+  end
+
   def rollback(repo, version) do
     load_app()
     {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :down, to: version))

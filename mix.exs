@@ -41,6 +41,7 @@ defmodule FinMan.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      {:deps_nix, "~> 2.0", only: :dev},
       {:ex_money_sql, "~> 1.0"},
       {:ex_cldr, "~> 2.0"},
       {:sourceror, "~> 1.8", only: [:dev, :test]},
@@ -104,6 +105,9 @@ defmodule FinMan.MixProject do
         "phx.digest"
       ],
       precommit: ["compile --warning-as-errors", "deps.unlock --unused", "format", "test"]
+      # FIXME: expert calls `mix deps.get` which for some reason creates a different deps.nix output
+      # "deps.get": ["deps.get", "deps.nix --output nix/deps.nix --env prod"],
+      # "deps.update": ["deps.update", "deps.nix --output nix/deps.nix --env prod"]
     ]
   end
 end

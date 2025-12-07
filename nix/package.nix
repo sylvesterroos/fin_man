@@ -1,9 +1,9 @@
 {
   beamPackages,
+  callPackages,
   elixir,
   erlang,
   esbuild,
-  fetchFromGitHub,
   lib,
   nix-gitignore,
   pname,
@@ -11,35 +11,24 @@
   version,
 }:
 let
-  src = nix-gitignore.gitignoreSource [ ] ../.;
+  src = nix-gitignore.gitignoreSource [
+    "/nix"
+  ] ../.;
 
-  mixFodDeps = beamPackages.fetchMixDeps {
-    inherit version src;
-    pname = "${pname}-mix-deps";
-    hash = "sha256-uiuNL1oBTnUJCHlhD2j5cjAvoAtjn04Qn3voPeex1PY=";
-  };
-
-  heroicons = fetchFromGitHub {
-    owner = "tailwindlabs";
-    repo = "heroicons";
-    rev = "v2.2.0";
-    hash = "sha256-Jcxr1fSbmXO9bZKeg39Z/zVN0YJp17TX3LH5Us4lsZU=";
-  };
+  mixNixDeps = callPackages ./deps.nix { };
 in
 beamPackages.mixRelease {
   inherit
-    src
-    pname
-    version
-    erlang
     elixir
-    mixFodDeps
+    erlang
+    mixNixDeps
+    pname
+    src
+    version
     ;
 
   preBuild = # bash
     ''
-      cp -r ${heroicons} deps/heroicons
-
       cat >> config/config.exs <<EOF
       config :tailwind, path: "${lib.getExe tailwindcss_4}"
       config :esbuild, path: "${lib.getExe esbuild}"
@@ -48,12 +37,14 @@ beamPackages.mixRelease {
 
   postBuild = # bash
     ''
-      mix do deps.loadpaths --no-deps-check, assets.deploy
-      mix do deps.loadpaths --no-deps-check, phx.digest priv/static
+      ln -sfv ${mixNixDeps.heroicons} deps/heroicons
+
+      mix do deps.loadpaths --no-deps-check + assets.deploy
+      mix do deps.loadpaths --no-deps-check + phx.digest priv/static
     '';
 
   stripDebug = true;
-  removeCookie = false;
+  removeCookie = true;
 
   meta.mainProgram = pname;
 }
