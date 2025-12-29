@@ -1,6 +1,6 @@
 # FinMan
 
-FinMan is a simple web app tracking your income and expenses.
+FinMan is a simple web app for tracking your income and expenses.
 
 ## Why?
 
